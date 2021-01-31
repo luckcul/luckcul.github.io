@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="xr6fZC8T0WK2mTcvk1n3Zus9z1ERpjekU-CN-SsZDCI">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.14.0/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"luckcul.net","root":"/","scheme":"Mist","version":"8.0.0","exturl":false,"sidebar":{"position":"right","display":"always","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="本文包括论文和源码细节 node2vec目标是训练比较通用的特征表示。将目标函数定义为与下游任务独立，以无监督的方式学习（和任务特定的训练方式得到的结果差别不明显）。使用点类型和边（是否存在）进行评估。 本论文是deepwalk工作的改进，主要改动为随机游走的策略，通过超参数控制BFS和DFS间的权衡。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Graph Embedding之node2vec">
+<meta property="og:url" content="http://luckcul.net/2020/12/24/node2vec/index.html">
+<meta property="og:site_name" content="luckcul&#39;s blog">
+<meta property="og:description" content="本文包括论文和源码细节 node2vec目标是训练比较通用的特征表示。将目标函数定义为与下游任务独立，以无监督的方式学习（和任务特定的训练方式得到的结果差别不明显）。使用点类型和边（是否存在）进行评估。 本论文是deepwalk工作的改进，主要改动为随机游走的策略，通过超参数控制BFS和DFS间的权衡。">
+<meta property="og:locale">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085096/paper/node2vec/node2vec_randomwalk.png">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085348/paper/node2vec/node2vec_algorithm.png">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085967/paper/node2vec/node2vec_parameter.png">
+<meta property="article:published_time" content="2020-12-24T14:53:43.000Z">
+<meta property="article:modified_time" content="2021-01-31T19:15:44.835Z">
+<meta property="article:author" content="luckcul">
+<meta property="article:tag" content="GraphLearning">
+<meta property="article:tag" content="GraphEmbedding">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085096/paper/node2vec/node2vec_randomwalk.png">
+
+
+<link rel="canonical" href="http://luckcul.net/2020/12/24/node2vec/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>Graph Embedding之node2vec | luckcul's blog</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-70247022-1"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'UA-70247022-1');
+      }
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?34453bc9c2eaf52085c082e08202c30a";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">luckcul's blog</h1>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">越努力，越幸运</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Fuature-Learning-Framework"><span class="nav-number">1.</span> <span class="nav-text">Fuature Learning Framework</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Random-Walks"><span class="nav-number">2.</span> <span class="nav-text">Random Walks</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#node2vec-algorithm"><span class="nav-number">3.</span> <span class="nav-text">node2vec algorithm</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Experiments-amp-Parameter"><span class="nav-number">4.</span> <span class="nav-text">Experiments &amp; Parameter</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BA%90%E7%A0%81"><span class="nav-number">5.</span> <span class="nav-text">源码</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reference"><span class="nav-number">6.</span> <span class="nav-text">reference</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="luckcul"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">luckcul</p>
+  <div class="site-description" itemprop="description">Life is a Marathon!</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">9</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">6</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">12</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/luckcul" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;luckcul" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.zhihu.com/people/tian-yan-fei" title="ZhiHu → http:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tian-yan-fei" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>ZhiHu</a>
+      </span>
+  </div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://luckcul.net/2020/12/24/node2vec/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="luckcul">
+      <meta itemprop="description" content="Life is a Marathon!">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="luckcul's blog">
+    </span>
+
+    
+    
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Graph Embedding之node2vec
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2020-12-24 22:53:43" itemprop="dateCreated datePublished" datetime="2020-12-24T22:53:43+08:00">2020-12-24</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">Edited on</span>
+        <time title="Modified: 2021-02-01 03:15:44" itemprop="dateModified" datetime="2021-02-01T03:15:44+08:00">2021-02-01</time>
+      </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/GraphLearning/" itemprop="url" rel="index"><span itemprop="name">GraphLearning</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="Views" id="busuanzi_container_page_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">Views: </span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>本文包括论文和源码细节</p>
+<p>node2vec目标是训练比较通用的特征表示。将目标函数定义为与下游任务独立，以无监督的方式学习（和任务特定的训练方式得到的结果差别不明显）。使用点类型和边（是否存在）进行评估。</p>
+<p>本论文是deepwalk工作的改进，主要改动为随机游走的策略，通过超参数控制BFS和DFS间的权衡。</p>
+<a id="more"></a>
+
+<h2 id="Fuature-Learning-Framework"><a href="#Fuature-Learning-Framework" class="headerlink" title="Fuature Learning Framework"></a>Fuature Learning Framework</h2><p>基础上还是使用了<strong>skip-gram</strong>结构，优化的目标函数:</p>
+<p>$$max_f \sum_{u\in V}\log Pr(N_S(u) | f(u))$$</p>
+<p>V是点集合，u是点，f(u)表示u的向量，$N_S(u)$表示通过策略S生成的邻居。为了易于训练，设定了两个假设：1）给定节点向量表示下周围邻居出现的概率是独立的，则</p>
+<p>$$Pr(N_S(u) | f(u))=\prod_{n_i \in N_S(u)} Pr(n_i|f(u))$$</p>
+<p>2)特征空间是对称的（问题：word2vec并不是这样，两个向量空间并没有共享？），则</p>
+<p>$$P_r(n_i|f(u))=\frac{exp(f(n_i)\cdot f(u))}{\sum_{v\in V}exp(f(v)\cdot f(u))}$$</p>
+<p>则，最开始的优化目标改写为：</p>
+<p>$$max_f \sum_{v\in V} [ -log Z_u + \sum_{n_i\in N_S(u)}{f(n_i)\cdot f(u)} ]$$</p>
+<p>其中 $Z_u=\sum_{v\in V} exp(f(u) \cdot f(v))$，（ps：这里应该还有一个因子$|N_S(u)|$ 常数），该部分直接计算量较大，可以使用负采样进行优化。</p>
+<p>注意两个点：同质性（属于同一个社区）和同构性（结构相似），注意同构性不需要相连</p>
+<h2 id="Random-Walks"><a href="#Random-Walks" class="headerlink" title="Random Walks"></a>Random Walks</h2><p>从节点u开始随机游走l个节点，如果上一个节点为v，下一个节点x的概率为</p>
+<p>$$P(c_i | c_{i-1}=v)= \begin{cases}<br>\frac{\pi_{vx}}{Z} \ if (v,x) \in E \ 0 \ otherwise<br>\end{cases}$$</p>
+<p>具体的有偏的游走逻辑为：</p>
+<p>$$\alpha_{pq}(t,x) = \begin{cases} \frac{1}{p} \  if d_{tx} = 0 \  1 \ if d_{tx} = 1 \ \frac{1}{q} \ if d_{tx} = 2 \end{cases}$$</p>
+<p>当前节点为v，前一个节点为t，$d_{tx}$表示下一个节点x和上一个节点的距离。通过p、q两参数来权衡BFS和DFS策略（BFS更侧重学习结构化的特征、DFS更侧重学习社区化的特征）</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085096/paper/node2vec/node2vec_randomwalk.png" alt="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085096/paper/node2vec/node2vec_randomwalk.png"></p>
+<h2 id="node2vec-algorithm"><a href="#node2vec-algorithm" class="headerlink" title="node2vec algorithm"></a>node2vec algorithm</h2><p>算法逻辑如下，有几个超参数：r（每个节点的采样次数）、l（每个节点每次的采样步长）、k（skip-gram窗口大小）、p和q（随机游走参数）</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085348/paper/node2vec/node2vec_algorithm.png" alt="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085348/paper/node2vec/node2vec_algorithm.png"></p>
+<h2 id="Experiments-amp-Parameter"><a href="#Experiments-amp-Parameter" class="headerlink" title="Experiments &amp; Parameter"></a>Experiments &amp; Parameter</h2><p>节点预测中，将学习得到的向量直接输入到one-vs-rest LR模型（L2正则）模型中进行分类。在可视化聚类用用的是k-means，p q 参数一般为$p,q \in {0.25, 0.5, 1, 2, 4}$。</p>
+<p>向量维度在100以上增益不明显，窗口k在10以上增益不明显</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085967/paper/node2vec/node2vec_parameter.png" alt="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1609085967/paper/node2vec/node2vec_parameter.png"></p>
+<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>源码地址：<a target="_blank" rel="noopener" href="https://github.com/aditya-grover/node2vec">https://github.com/aditya-grover/node2vec</a></p>
+<p>使用networkx来维护图的数据结构，支持有向/无向图，支持带权/无权图。</p>
+<p>skip-gram训练直接调用了<code>gensim.models.Word2Vec</code> ，代码的核心内容为使用随机游走构造训练集合。</p>
+<p>构造训练集主要分两部分，第一部分是打表，先计算每个点下一步随机游走概率的中间结果</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">preprocess_transition_probs</span>(<span class="params">self</span>):</span></span><br><span class="line">    <span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">    Preprocessing of transition probabilities for guiding the random walks.</span></span><br><span class="line"><span class="string">    &#x27;&#x27;&#x27;</span></span><br><span class="line">    G = self.G</span><br><span class="line">    is_directed = self.is_directed</span><br><span class="line"></span><br><span class="line">    alias_nodes = &#123;&#125;</span><br><span class="line">		<span class="comment"># 处理单节点（用以起点的随机游走）</span></span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> G.nodes():</span><br><span class="line">        unnormalized_probs = [G[node][nbr][<span class="string">&#x27;weight&#x27;</span>] <span class="keyword">for</span> nbr <span class="keyword">in</span> <span class="built_in">sorted</span>(G.neighbors(node))]</span><br><span class="line">        norm_const = <span class="built_in">sum</span>(unnormalized_probs)</span><br><span class="line">        normalized_probs =  [<span class="built_in">float</span>(u_prob)/norm_const <span class="keyword">for</span> u_prob <span class="keyword">in</span> unnormalized_probs]</span><br><span class="line">        alias_nodes[node] = alias_setup(normalized_probs)</span><br><span class="line"></span><br><span class="line">    alias_edges = &#123;&#125;</span><br><span class="line">    triads = &#123;&#125;</span><br><span class="line">		<span class="comment"># 处理双节点（用以已知上一节点的随机游走）</span></span><br><span class="line">    <span class="keyword">if</span> is_directed:</span><br><span class="line">        <span class="keyword">for</span> edge <span class="keyword">in</span> G.edges():</span><br><span class="line">            alias_edges[edge] = self.get_alias_edge(edge[<span class="number">0</span>], edge[<span class="number">1</span>])</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">for</span> edge <span class="keyword">in</span> G.edges():</span><br><span class="line">            alias_edges[edge] = self.get_alias_edge(edge[<span class="number">0</span>], edge[<span class="number">1</span>])</span><br><span class="line">            alias_edges[(edge[<span class="number">1</span>], edge[<span class="number">0</span>])] = self.get_alias_edge(edge[<span class="number">1</span>], edge[<span class="number">0</span>])</span><br><span class="line"></span><br><span class="line">    self.alias_nodes = alias_nodes</span><br><span class="line">    self.alias_edges = alias_edges</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span></span><br></pre></td></tr></table></figure>
+<p>其中核心的是的是<code>alias_setup</code> 函数（实现了Alias算法），详解见<a target="_blank" rel="noopener" href="https://blog.csdn.net/manmanxiaowugun/article/details/90170193">这里</a>。这是一种复杂度O(1)的采样算法，如果不用这种方式，需要每次生成随机数，然后O(n)或O(log(n))的复杂度进行生成，效率较低。对于一组离散输入的概率，返回J（每个位置和另一个位置），q（当前的概率值）。ps：查询时生成两个随机数即可。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">alias_setup</span>(<span class="params">probs</span>):</span></span><br><span class="line">	<span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">	Compute utility lists for non-uniform sampling from discrete distributions.</span></span><br><span class="line"><span class="string">	Refer to https://hips.seas.harvard.edu/blog/2013/03/03/the-alias-method-efficient-sampling-with-many-discrete-outcomes/</span></span><br><span class="line"><span class="string">	for details</span></span><br><span class="line"><span class="string">	&#x27;&#x27;&#x27;</span></span><br><span class="line">	K = <span class="built_in">len</span>(probs)</span><br><span class="line">	q = np.zeros(K)</span><br><span class="line">	J = np.zeros(K, dtype=np.<span class="built_in">int</span>)</span><br><span class="line"></span><br><span class="line">	smaller = []</span><br><span class="line">	larger = []</span><br><span class="line">	<span class="keyword">for</span> kk, prob <span class="keyword">in</span> <span class="built_in">enumerate</span>(probs):</span><br><span class="line">	    q[kk] = K*prob</span><br><span class="line">	    <span class="keyword">if</span> q[kk] &lt; <span class="number">1.0</span>:</span><br><span class="line">	        smaller.append(kk)</span><br><span class="line">	    <span class="keyword">else</span>:</span><br><span class="line">	        larger.append(kk)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">while</span> <span class="built_in">len</span>(smaller) &gt; <span class="number">0</span> <span class="keyword">and</span> <span class="built_in">len</span>(larger) &gt; <span class="number">0</span>:</span><br><span class="line">	    small = smaller.pop()</span><br><span class="line">	    large = larger.pop()</span><br><span class="line"></span><br><span class="line">	    J[small] = large</span><br><span class="line">	    q[large] = q[large] + q[small] - <span class="number">1.0</span></span><br><span class="line">	    <span class="keyword">if</span> q[large] &lt; <span class="number">1.0</span>:</span><br><span class="line">	        smaller.append(large)</span><br><span class="line">	    <span class="keyword">else</span>:</span><br><span class="line">	        larger.append(large)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">return</span> J, q</span><br></pre></td></tr></table></figure>
+<p>第二部分，随机游走（基于前面的打表结果）</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">simulate_walks</span>(<span class="params">self, num_walks, walk_length</span>):</span></span><br><span class="line">		<span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">		Repeatedly simulate random walks from each node.</span></span><br><span class="line"><span class="string">		&#x27;&#x27;&#x27;</span></span><br><span class="line">		G = self.G</span><br><span class="line">		walks = []</span><br><span class="line">		nodes = <span class="built_in">list</span>(G.nodes())</span><br><span class="line">		<span class="built_in">print</span> <span class="string">&#x27;Walk iteration:&#x27;</span></span><br><span class="line">		<span class="keyword">for</span> walk_iter <span class="keyword">in</span> <span class="built_in">range</span>(num_walks): <span class="comment"># 游走轮数</span></span><br><span class="line">			<span class="built_in">print</span> <span class="built_in">str</span>(walk_iter+<span class="number">1</span>), <span class="string">&#x27;/&#x27;</span>, <span class="built_in">str</span>(num_walks)</span><br><span class="line">			random.shuffle(nodes)</span><br><span class="line">			<span class="keyword">for</span> node <span class="keyword">in</span> nodes:<span class="comment">#对每个点游走walk_length次</span></span><br><span class="line">				walks.append(self.node2vec_walk(walk_length=walk_length, start_node=node))</span><br><span class="line"></span><br><span class="line">		<span class="keyword">return</span> walks</span><br></pre></td></tr></table></figure>
+<p>单次游走</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">node2vec_walk</span>(<span class="params">self, walk_length, start_node</span>):</span></span><br><span class="line">		<span class="string">&#x27;&#x27;&#x27;</span></span><br><span class="line"><span class="string">		Simulate a random walk starting from start node.</span></span><br><span class="line"><span class="string">		&#x27;&#x27;&#x27;</span></span><br><span class="line">		G = self.G</span><br><span class="line">		alias_nodes = self.alias_nodes</span><br><span class="line">		alias_edges = self.alias_edges</span><br><span class="line"></span><br><span class="line">		walk = [start_node]</span><br><span class="line"></span><br><span class="line">		<span class="keyword">while</span> <span class="built_in">len</span>(walk) &lt; walk_length:</span><br><span class="line">			cur = walk[-<span class="number">1</span>]</span><br><span class="line">			cur_nbrs = <span class="built_in">sorted</span>(G.neighbors(cur))</span><br><span class="line">			<span class="keyword">if</span> <span class="built_in">len</span>(cur_nbrs) &gt; <span class="number">0</span>:</span><br><span class="line">				<span class="keyword">if</span> <span class="built_in">len</span>(walk) == <span class="number">1</span>:</span><br><span class="line">					walk.append(cur_nbrs[alias_draw(alias_nodes[cur][<span class="number">0</span>], alias_nodes[cur][<span class="number">1</span>])])</span><br><span class="line">				<span class="keyword">else</span>:</span><br><span class="line">					prev = walk[-<span class="number">2</span>]</span><br><span class="line">					<span class="built_in">next</span> = cur_nbrs[alias_draw(alias_edges[(prev, cur)][<span class="number">0</span>], </span><br><span class="line">						alias_edges[(prev, cur)][<span class="number">1</span>])]</span><br><span class="line">					walk.append(<span class="built_in">next</span>)</span><br><span class="line">			<span class="keyword">else</span>:</span><br><span class="line">				<span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">		<span class="keyword">return</span> walk</span><br></pre></td></tr></table></figure>
+<h2 id="reference"><a href="#reference" class="headerlink" title="reference"></a>reference</h2><ul>
+<li><a target="_blank" rel="noopener" href="http://snap.stanford.edu/node2vec">http://snap.stanford.edu/node2vec</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/aditya-grover/node2vec">https://github.com/aditya-grover/node2vec</a></li>
+<li>[<a target="_blank" rel="noopener" href="https://blog.csdn.net/manmanxiaowugun/article/details/90170193]">https://blog.csdn.net/manmanxiaowugun/article/details/90170193]</a>(</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/GraphLearning/" rel="tag"># GraphLearning</a>
+              <a href="/tags/GraphEmbedding/" rel="tag"># GraphEmbedding</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2020/12/04/DeepWalk/" rel="prev" title="Graph Embedding之DeepWalk">
+                  <i class="fa fa-chevron-left"></i> Graph Embedding之DeepWalk
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+  
+  
+  
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">luckcul</span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="Total Visitors">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="Total Views">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.0/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+  <script>
+  (function(w,d,t,u,n,s,e){w['SwiftypeObject']=n;w[n]=w[n]||function(){
+    (w[n].q=w[n].q||[]).push(arguments);};s=d.createElement(t);
+    e=d.getElementsByTagName(t)[0];s.async=1;s.src=u;e.parentNode.insertBefore(s,e);
+  })(window,document,'script','//s.swiftypecdn.com/install/v2/st.js','_st');
+
+  _st('install','UfzrtLcd_2sN6-teqqRL','2.0.0');
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+
+
+
+  
+
+  
+      <script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              const target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    const script = document.createElement('script');
+    script.src = '//cdn.jsdelivr.net/npm/mathjax@3.1.0/es5/tex-mml-chtml.js';
+    script.defer = true;
+    document.head.appendChild(script);
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.typesetClear();
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>

@@ -23,23 +23,26 @@
     var CONFIG = {"hostname":"luckcul.net","root":"/","scheme":"Mist","version":"8.0.0","exturl":false,"sidebar":{"position":"right","display":"always","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
   </script>
 
-  <meta name="description" content="在python中经常可以看到一些很精简的写法，与以往接触的其他语言不同的用法。有两种常见的，列表解析和生成器表达式。">
+  <meta name="description" content="Paper: DeepWalk: Online learning of social representations 论文14年发表，提出DEEPWALK使用随机游走的方式构造一种“特殊语言”，使用NLP模型学习节点表示。学习的向量表示与任务无关，下面是demo：">
 <meta property="og:type" content="article">
-<meta property="og:title" content="python列表解析和生成器表达式">
-<meta property="og:url" content="http://luckcul.net/2015/12/02/python-list-comps-and-generator-expressions/index.html">
+<meta property="og:title" content="Graph Embedding之DeepWalk">
+<meta property="og:url" content="http://luckcul.net/2020/12/04/DeepWalk/index.html">
 <meta property="og:site_name" content="luckcul&#39;s blog">
-<meta property="og:description" content="在python中经常可以看到一些很精简的写法，与以往接触的其他语言不同的用法。有两种常见的，列表解析和生成器表达式。">
+<meta property="og:description" content="Paper: DeepWalk: Online learning of social representations 论文14年发表，提出DEEPWALK使用随机游走的方式构造一种“特殊语言”，使用NLP模型学习节点表示。学习的向量表示与任务无关，下面是demo：">
 <meta property="og:locale">
-<meta property="article:published_time" content="2015-12-02T13:01:33.000Z">
-<meta property="article:modified_time" content="2018-02-06T16:00:00.000Z">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610899180/paper/deepwalk/deepwalk_demo.png">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610903568/paper/deepwalk/deepwalk_algorithm.png">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610904100/paper/deepwalk/deepwalk_train.png">
+<meta property="article:published_time" content="2020-12-04T04:53:43.000Z">
+<meta property="article:modified_time" content="2021-01-31T19:12:52.876Z">
 <meta property="article:author" content="luckcul">
-<meta property="article:tag" content="python">
-<meta property="article:tag" content="列表解析">
-<meta property="article:tag" content="生成器表达式">
+<meta property="article:tag" content="GraphLearning">
+<meta property="article:tag" content="GraphEmbedding">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610899180/paper/deepwalk/deepwalk_demo.png">
 
 
-<link rel="canonical" href="http://luckcul.net/2015/12/02/python-list-comps-and-generator-expressions/">
+<link rel="canonical" href="http://luckcul.net/2020/12/04/DeepWalk/">
 
 
 <script class="page-configurations">
@@ -52,7 +55,7 @@
   };
 </script>
 
-  <title>python列表解析和生成器表达式 | luckcul's blog</title>
+  <title>Graph Embedding之DeepWalk | luckcul's blog</title>
   
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-70247022-1"></script>
     <script>
@@ -203,7 +206,7 @@
 
       <!--noindex-->
       <section class="post-toc-wrap sidebar-panel">
-          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%88%97%E8%A1%A8%E8%A7%A3%E6%9E%90-List-comprehensions"><span class="nav-number">1.</span> <span class="nav-text">列表解析(List comprehensions)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%94%9F%E6%88%90%E5%99%A8%E8%A1%A8%E8%BE%BE%E5%BC%8F-Generator-Expressioins"><span class="nav-number">2.</span> <span class="nav-text">生成器表达式(Generator Expressioins)</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Tips"><span class="nav-number">3.</span> <span class="nav-text">Tips</span></a></li></ol></div>
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Random-Walk"><span class="nav-number">1.</span> <span class="nav-text">Random Walk</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Experiment"><span class="nav-number">2.</span> <span class="nav-text">Experiment</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%BA%90%E7%A0%81"><span class="nav-number">3.</span> <span class="nav-text">源码</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#skip-gram"><span class="nav-number">3.1.</span> <span class="nav-text">skip-gram</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#random-walk"><span class="nav-number">3.2.</span> <span class="nav-text">random-walk</span></a></li></ol></li></ol></div>
       </section>
       <!--/noindex-->
 
@@ -276,7 +279,7 @@
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
-    <link itemprop="mainEntityOfPage" href="http://luckcul.net/2015/12/02/python-list-comps-and-generator-expressions/">
+    <link itemprop="mainEntityOfPage" href="http://luckcul.net/2020/12/04/DeepWalk/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="image" content="/images/avatar.jpg">
@@ -292,7 +295,7 @@
     
       <header class="post-header">
         <h1 class="post-title" itemprop="name headline">
-          python列表解析和生成器表达式
+          Graph Embedding之DeepWalk
         </h1>
 
         <div class="post-meta-container">
@@ -303,14 +306,14 @@
       </span>
       <span class="post-meta-item-text">Posted on</span>
 
-      <time title="Created: 2015-12-02 21:01:33" itemprop="dateCreated datePublished" datetime="2015-12-02T21:01:33+08:00">2015-12-02</time>
+      <time title="Created: 2020-12-04 12:53:43" itemprop="dateCreated datePublished" datetime="2020-12-04T12:53:43+08:00">2020-12-04</time>
     </span>
       <span class="post-meta-item">
         <span class="post-meta-item-icon">
           <i class="far fa-calendar-check"></i>
         </span>
         <span class="post-meta-item-text">Edited on</span>
-        <time title="Modified: 2018-02-07 00:00:00" itemprop="dateModified" datetime="2018-02-07T00:00:00+08:00">2018-02-07</time>
+        <time title="Modified: 2021-02-01 03:12:52" itemprop="dateModified" datetime="2021-02-01T03:12:52+08:00">2021-02-01</time>
       </span>
     <span class="post-meta-item">
       <span class="post-meta-item-icon">
@@ -318,7 +321,7 @@
       </span>
       <span class="post-meta-item-text">In</span>
         <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-          <a href="/categories/python/" itemprop="url" rel="index"><span itemprop="name">python</span></a>
+          <a href="/categories/GraphLearning/" itemprop="url" rel="index"><span itemprop="name">GraphLearning</span></a>
         </span>
     </span>
 
@@ -339,26 +342,33 @@
     
     
     <div class="post-body" itemprop="articleBody">
-        <p>在python中经常可以看到一些很精简的写法，与以往接触的其他语言不同的用法。有两种常见的，列表解析和生成器表达式。</p>
+        <p>Paper: DeepWalk: Online learning of social representations</p>
+<p>论文14年发表，提出DEEPWALK使用随机游走的方式构造一种“特殊语言”，使用NLP模型学习节点表示。学习的向量表示与任务无关，下面是demo：</p>
 <a id="more"></a>
-<h1 id="列表解析-List-comprehensions"><a href="#列表解析-List-comprehensions" class="headerlink" title="列表解析(List comprehensions)"></a>列表解析(List comprehensions)</h1><p>首先我们看一下列表解析的语法。</p>
-<p><code>[expr for iter_var in iterable]</code><br><code>[expr for iter_var in iterable if cond_expr]</code></p>
-<p>for 循环迭代iterable对象所有的条目，前面的expr应用于序列的每个成员，最后的结果值是该表达式产生的列表。<br>比如</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">print</span> [x ** <span class="number">2</span> <span class="keyword">for</span> x <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">6</span>)]</span><br></pre></td></tr></table></figure>
-<p>输出<code>[0, 1, 4, 9, 16, 25]</code><br>其实这种用法和分开写是一样的，比如</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">res = [(i, j) <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">5</span>) <span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">3</span>) <span class="keyword">if</span> (i+j)%<span class="number">2</span> == <span class="number">0</span>]</span><br><span class="line"><span class="built_in">print</span> res</span><br></pre></td></tr></table></figure>
-<p>和</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">res = []</span><br><span class="line"><span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">5</span>) :</span><br><span class="line">	<span class="keyword">for</span> j <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">3</span>):</span><br><span class="line">		<span class="keyword">if</span> (i+j)%<span class="number">2</span> == <span class="number">0</span>:</span><br><span class="line">			res.append((i, j))</span><br><span class="line"><span class="built_in">print</span> res</span><br></pre></td></tr></table></figure>
-<p>输出是一样的<br><code>[(0, 0), (0, 2), (1, 1), (2, 0), (2, 2), (3, 1), (4, 0), (4, 2)]</code></p>
-<h1 id="生成器表达式-Generator-Expressioins"><a href="#生成器表达式-Generator-Expressioins" class="headerlink" title="生成器表达式(Generator Expressioins)"></a>生成器表达式(Generator Expressioins)</h1><p>它是列表解析的一个扩展，至于用法和上面非常相似</p>
-<p><code>(expr for iter_var in iterable)</code><br><code>(expr for iter_var in iterable if cond_expr)</code></p>
-<p>不过他们还是有很大不同的，列表解析要一次性生成所有的数据，用以创建整个列表。而生成器表达式不是这样的。</p>
-<p>生成器表达式不是正真创建数字列表，而是返回一个<strong>生成器</strong>，这个生成器会把每次计算出一个条目之后，把这个条目yield产生出来。生成器表达式使用了**延迟计算(lazy evaluation)**，所以它在占用内存方面更有效。在使用上和列表解析基本相同，只是一个占用内存更少的一个结构。</p>
-<h1 id="Tips"><a href="#Tips" class="headerlink" title="Tips"></a>Tips</h1><ul>
-<li>使用列表解析完成的功能，也可以使用map、filter、lambda来实现。比如实现上面计算平方，<code>map(lambda x: x**2, range(6))</code>。<br>然而，使用列表解析比这种用法效率更高。</li>
-<li>当序列过长，每次只需要一个元素时，使用生成器表达式较优。</li>
-<li>当执行类似复制列表操作时，直接方式实现比使用列表解析更好。<br><code>L1 = list(L2)</code> ，不必使用 <code>L1 = [i for i in L2]</code></li>
-</ul>
+
+
+
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610899180/paper/deepwalk/deepwalk_demo.png" alt="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610899180/paper/deepwalk/deepwalk_demo.png"></p>
+<p>本文的主要贡献是将NLP模型用以网络中社区结构的学习</p>
+<h2 id="Random-Walk"><a href="#Random-Walk" class="headerlink" title="Random Walk"></a>Random Walk</h2><p>随机游走性能的两个优点：1）可以并行（使用多进程、多线程或多机器）；2）可以适应动态更新，只新增游走新增节点部分。</p>
+<p>算法应用可行性分析中，语言中词频分布和随机游走生成的点击频度分布都服从幂律分布。通过skip-gram算法，拥有相似邻居的节点会得到相似的向量表示。</p>
+<p>算法的超参数：r-每个节点的游走次数、d-生成向量的维度、t-每个节点游走的长度（句子长度）、w-skipgram窗口大小</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610903568/paper/deepwalk/deepwalk_algorithm.png" alt="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610903568/paper/deepwalk/deepwalk_algorithm.png"></p>
+<p>本文还介绍了使用的skip-gram算法，已经用以加速计算的Hierarchical Softmax技巧，具体是通过构造哈夫曼数来进行计算。将求softmax的复杂度从<code>O(|V|)</code>降为<code>O(log |V|)</code> 。</p>
+<p>数据构建与算法训练示意</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610904100/paper/deepwalk/deepwalk_train.png" alt="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1610904100/paper/deepwalk/deepwalk_train.png"></p>
+<p>由于数据满足幂律分布，这让我们可以使用异步的训练模式。具体用多线程来训练，没有使用锁机制来保护参数更新。</p>
+<p>除了随机游走，对于某些可以自然生成序列样本（如网站中用户的页面访问）可以直接作为训练样本。这种方式不仅可以捕捉网络的结构，还可以捕捉访问的频度。</p>
+<h2 id="Experiment"><a href="#Experiment" class="headerlink" title="Experiment"></a>Experiment</h2><p>数据集使用了3类：BlogCatalog、Flickr、YouTube。</p>
+<p>DeepWalk生成向量的使用方式：用LibLinear实现的one-vs-rest LR模型。具体超参数r=80、w=10、d=128</p>
+<p>评价指标用了Micro-F1、Macro-F1，其中Micro-F1是全部样本在一起算TP、FP、FN，最终计算F1；Macro-F1是每一类分别计算F1，然后取平均。</p>
+<h2 id="源码"><a href="#源码" class="headerlink" title="源码"></a>源码</h2><p>源码地址：<a target="_blank" rel="noopener" href="https://github.com/phanein/deepwalk">https://github.com/phanein/deepwalk</a></p>
+<h3 id="skip-gram"><a href="#skip-gram" class="headerlink" title="skip-gram"></a>skip-gram</h3><p>直接调用了<code>gensim</code> 的实现，使用了hierarchical soft的实现，默认<code>workers</code> 为机器cpu核数。</p>
+<h3 id="random-walk"><a href="#random-walk" class="headerlink" title="random-walk"></a>random-walk</h3><p>从给定起点出发（如果不给定，则随机一个），从当前节点，每次有一定概率（默认为0）返回初始点，否则从当前的邻居节点随机选择一个（包括已经访问过的）。如果当前节点没有下一个节点，或者长度足够则返回。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">random_walk</span>(<span class="params">self, path_length, alpha=<span class="number">0</span>, rand=random.Random(<span class="params"></span>), start=<span class="literal">None</span></span>):</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot; Returns a truncated random walk.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        path_length: Length of the random walk.</span></span><br><span class="line"><span class="string">        alpha: probability of restarts.</span></span><br><span class="line"><span class="string">        start: the start node of the random walk.</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    G = self</span><br><span class="line">    <span class="keyword">if</span> start:</span><br><span class="line">      path = [start]</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">      <span class="comment"># Sampling is uniform w.r.t V, and not w.r.t E</span></span><br><span class="line">      path = [rand.choice(<span class="built_in">list</span>(G.keys()))]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> <span class="built_in">len</span>(path) &lt; path_length:</span><br><span class="line">      cur = path[-<span class="number">1</span>]</span><br><span class="line">      <span class="keyword">if</span> <span class="built_in">len</span>(G[cur]) &gt; <span class="number">0</span>:</span><br><span class="line">        <span class="keyword">if</span> rand.random() &gt;= alpha:</span><br><span class="line">          path.append(rand.choice(G[cur]))</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">          path.append(path[<span class="number">0</span>])</span><br><span class="line">      <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">return</span> [<span class="built_in">str</span>(node) <span class="keyword">for</span> node <span class="keyword">in</span> path]</span><br></pre></td></tr></table></figure>
+<p>构造样本库</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">build_deepwalk_corpus</span>(<span class="params">G, num_paths, path_length, alpha=<span class="number">0</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                      rand=random.Random(<span class="params"><span class="number">0</span></span>)</span>):</span></span><br><span class="line">  walks = []</span><br><span class="line"></span><br><span class="line">  nodes = <span class="built_in">list</span>(G.nodes())</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">for</span> cnt <span class="keyword">in</span> <span class="built_in">range</span>(num_paths):</span><br><span class="line">    rand.shuffle(nodes)</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> nodes:</span><br><span class="line">      walks.append(G.random_walk(path_length, rand=rand, alpha=alpha, start=node))</span><br><span class="line">  </span><br><span class="line">  <span class="keyword">return</span> walks</span><br></pre></td></tr></table></figure>
+<p>其余代码主要是处理样本比较大的情况，使用多进程、落盘、iterator等方式。</p>
 
     </div>
 
@@ -368,22 +378,21 @@
 
     <footer class="post-footer">
           <div class="post-tags">
-              <a href="/tags/python/" rel="tag"># python</a>
-              <a href="/tags/%E5%88%97%E8%A1%A8%E8%A7%A3%E6%9E%90/" rel="tag"># 列表解析</a>
-              <a href="/tags/%E7%94%9F%E6%88%90%E5%99%A8%E8%A1%A8%E8%BE%BE%E5%BC%8F/" rel="tag"># 生成器表达式</a>
+              <a href="/tags/GraphLearning/" rel="tag"># GraphLearning</a>
+              <a href="/tags/GraphEmbedding/" rel="tag"># GraphEmbedding</a>
           </div>
 
         
 
           <div class="post-nav">
             <div class="post-nav-item">
-                <a href="/2015/11/20/hello-world/" rel="prev" title="hello world">
-                  <i class="fa fa-chevron-left"></i> hello world
+                <a href="/2018/02/04/ccf-bdci-ai-judge/" rel="prev" title="2017 CCF-BDCI 让AI当法官 第一名解决方案">
+                  <i class="fa fa-chevron-left"></i> 2017 CCF-BDCI 让AI当法官 第一名解决方案
                 </a>
             </div>
             <div class="post-nav-item">
-                <a href="/2016/04/14/microsoft201603OnlineTest/" rel="next" title="微软2016校园招聘4月在线笔试">
-                  微软2016校园招聘4月在线笔试 <i class="fa fa-chevron-right"></i>
+                <a href="/2020/12/24/node2vec/" rel="next" title="Graph Embedding之node2vec">
+                  Graph Embedding之node2vec <i class="fa fa-chevron-right"></i>
                 </a>
             </div>
           </div>
