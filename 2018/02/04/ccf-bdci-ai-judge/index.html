@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.3.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/avatar.jpg">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/avatar.jpg">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+  <meta name="google-site-verification" content="xr6fZC8T0WK2mTcvk1n3Zus9z1ERpjekU-CN-SsZDCI">
+
+<link rel="stylesheet" href="/css/main.css">
+
+<link rel="stylesheet" href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&display=swap&subset=latin,latin-ext">
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@5.14.0/css/all.min.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/animate.css@3.1.1/animate.min.css">
+
+<script class="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"luckcul.net","root":"/","scheme":"Mist","version":"8.0.0","exturl":false,"sidebar":{"position":"right","display":"always","padding":18,"offset":12},"copycode":false,"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"fadeInDown","post_body":"fadeInDown","coll_header":"fadeInLeft","sidebar":"fadeInUp"}},"prism":false,"i18n":{"placeholder":"Searching...","empty":"We didn't find any results for the search: ${query}","hits_time":"${hits} results found in ${time} ms","hits":"${hits} results found"}};
+  </script>
+
+  <meta name="description" content="2017下半年参加了CCF BDCI(大数据与计算智能大赛)，主要做了其中“让AI当法官”赛题。比赛持续了大约3个月，我们队伍“方唐镜”最终取得了“让AI当法官”赛题一等奖(1&#x2F;415)，CCF BDCI综合特等奖(1&#x2F;6675)。这是第一次参加自然语言处理和文本相关的比赛，收获很大，希望将来投身到NLP的工作中。接下来是我们用到的方法的总结和分享。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2017 CCF-BDCI 让AI当法官 第一名解决方案">
+<meta property="og:url" content="http://luckcul.net/2018/02/04/ccf-bdci-ai-judge/index.html">
+<meta property="og:site_name" content="luckcul&#39;s blog">
+<meta property="og:description" content="2017下半年参加了CCF BDCI(大数据与计算智能大赛)，主要做了其中“让AI当法官”赛题。比赛持续了大约3个月，我们队伍“方唐镜”最终取得了“让AI当法官”赛题一等奖(1&#x2F;415)，CCF BDCI综合特等奖(1&#x2F;6675)。这是第一次参加自然语言处理和文本相关的比赛，收获很大，希望将来投身到NLP的工作中。接下来是我们用到的方法的总结和分享。">
+<meta property="og:locale">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520142761/paper/ccf_1.jpg">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520146255/paper/ccfTextCnn.png">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520146907/paper/ccfRNN.png">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520151118/paper/ccfStructured.png">
+<meta property="og:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520152372/paper/ccf-results.png">
+<meta property="article:published_time" content="2018-02-04T04:53:43.000Z">
+<meta property="article:modified_time" content="2018-03-06T16:00:00.000Z">
+<meta property="article:author" content="luckcul">
+<meta property="article:tag" content="NLP">
+<meta property="article:tag" content="text classification， competition">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520142761/paper/ccf_1.jpg">
+
+
+<link rel="canonical" href="http://luckcul.net/2018/02/04/ccf-bdci-ai-judge/">
+
+
+<script class="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-Hans'
+  };
+</script>
+
+  <title>2017 CCF-BDCI 让AI当法官 第一名解决方案 | luckcul's blog</title>
+  
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-70247022-1"></script>
+    <script>
+      if (CONFIG.hostname === location.hostname) {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'UA-70247022-1');
+      }
+    </script>
+
+
+  <script>
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?34453bc9c2eaf52085c082e08202c30a";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+  </script>
+
+
+
+
+  <noscript>
+  <style>
+  body { margin-top: 2rem; }
+
+  .use-motion .menu-item,
+  .use-motion .sidebar,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header {
+    visibility: visible;
+  }
+
+  .use-motion .header,
+  .use-motion .site-brand-container .toggle,
+  .use-motion .footer { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle,
+  .use-motion .custom-logo-image {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line {
+    transform: scaleX(1);
+  }
+
+  .search-pop-overlay, .sidebar-nav { display: none; }
+  .sidebar-panel { display: block; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" class="use-motion">
+  <div class="headband"></div>
+
+  <main class="main">
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+        <span class="toggle-line"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <i class="logo-line"></i>
+      <h1 class="site-title">luckcul's blog</h1>
+      <i class="logo-line"></i>
+    </a>
+      <p class="site-subtitle" itemprop="description">越努力，越幸运</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+<nav class="site-nav">
+  <ul class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>Tags</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>Categories</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>About</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+        
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+    <span class="toggle-line"></span>
+  </div>
+
+  <aside class="sidebar">
+
+    <div class="sidebar-inner sidebar-nav-active sidebar-toc-active">
+      <ul class="sidebar-nav">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <section class="post-toc-wrap sidebar-panel">
+          <div class="post-toc animated"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%AF%94%E8%B5%9B%E4%BB%BB%E5%8A%A1"><span class="nav-number">1.</span> <span class="nav-text">比赛任务</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE"><span class="nav-number">2.</span> <span class="nav-text">数据</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E5%88%86%E6%9E%90"><span class="nav-number">2.1.</span> <span class="nav-text">数据分析</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E6%95%B0%E6%8D%AE%E9%A2%84%E5%A4%84%E7%90%86"><span class="nav-number">2.2.</span> <span class="nav-text">数据预处理</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E7%AE%97%E6%B3%95%E6%A8%A1%E5%9E%8B"><span class="nav-number">3.</span> <span class="nav-text">算法模型</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#TextCNN"><span class="nav-number">3.1.</span> <span class="nav-text">TextCNN</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#RNN"><span class="nav-number">3.2.</span> <span class="nav-text">RNN</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Structured"><span class="nav-number">3.3.</span> <span class="nav-text">Structured</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E6%A8%A1%E5%9E%8B%E8%9E%8D%E5%90%88"><span class="nav-number">4.</span> <span class="nav-text">模型融合</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#%E5%85%B6%E4%BB%96"><span class="nav-number">5.</span> <span class="nav-text">其他</span></a></li></ol></div>
+      </section>
+      <!--/noindex-->
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-author animated" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="luckcul"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">luckcul</p>
+  <div class="site-description" itemprop="description">Life is a Marathon!</div>
+</div>
+<div class="site-state-wrap animated">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">7</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">5</span>
+        <span class="site-state-item-name">categories</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">10</span>
+        <span class="site-state-item-name">tags</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author animated">
+      <span class="links-of-author-item">
+        <a href="https://github.com/luckcul" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;luckcul" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="http://www.zhihu.com/people/tian-yan-fei" title="ZhiHu → http:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;tian-yan-fei" rel="noopener" target="_blank"><i class="fab fa-google fa-fw"></i>ZhiHu</a>
+      </span>
+  </div>
+
+
+
+      </section>
+    </div>
+  </aside>
+  <div class="sidebar-dimmer"></div>
+
+
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+<noscript>
+  <div class="noscript-warning">Theme NexT works best with JavaScript enabled</div>
+</noscript>
+
+
+    <div class="main-inner post posts-expand">
+      
+
+      
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-Hans">
+    <link itemprop="mainEntityOfPage" href="http://luckcul.net/2018/02/04/ccf-bdci-ai-judge/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="luckcul">
+      <meta itemprop="description" content="Life is a Marathon!">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="luckcul's blog">
+    </span>
+
+    
+    
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          2017 CCF-BDCI 让AI当法官 第一名解决方案
+        </h1>
+
+        <div class="post-meta-container">
+          <div class="post-meta">
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-calendar"></i>
+      </span>
+      <span class="post-meta-item-text">Posted on</span>
+
+      <time title="Created: 2018-02-04 12:53:43" itemprop="dateCreated datePublished" datetime="2018-02-04T12:53:43+08:00">2018-02-04</time>
+    </span>
+      <span class="post-meta-item">
+        <span class="post-meta-item-icon">
+          <i class="far fa-calendar-check"></i>
+        </span>
+        <span class="post-meta-item-text">Edited on</span>
+        <time title="Modified: 2018-03-07 00:00:00" itemprop="dateModified" datetime="2018-03-07T00:00:00+08:00">2018-03-07</time>
+      </span>
+    <span class="post-meta-item">
+      <span class="post-meta-item-icon">
+        <i class="far fa-folder"></i>
+      </span>
+      <span class="post-meta-item-text">In</span>
+        <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+          <a href="/categories/NLP/" itemprop="url" rel="index"><span itemprop="name">NLP</span></a>
+        </span>
+    </span>
+
+  
+    <span class="post-meta-item" title="Views" id="busuanzi_container_page_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="far fa-eye"></i>
+      </span>
+      <span class="post-meta-item-text">Views: </span>
+      <span id="busuanzi_value_page_pv"></span>
+    </span>
+</div>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+        <p>2017下半年参加了CCF BDCI(大数据与计算智能大赛)，主要做了其中<a target="_blank" rel="noopener" href="http://www.datafountain.cn/#/competitions/277/intro">“让AI当法官”赛题</a>。比赛持续了大约3个月，我们队伍“方唐镜”最终取得了“让AI当法官”<a target="_blank" rel="noopener" href="http://www.datafountain.cn/#/competitions/277/ranking/b/3">赛题一等奖(1/415)</a>，CCF BDCI综合特等奖(1/6675)。这是第一次参加自然语言处理和文本相关的比赛，收获很大，希望将来投身到NLP的工作中。接下来是我们用到的方法的总结和分享。</p>
+<a id="more"></a>
+
+<h1 id="比赛任务"><a href="#比赛任务" class="headerlink" title="比赛任务"></a>比赛任务</h1><p>希望通过机器阅读大量的案件事实，自动给出该案件中犯罪嫌疑人所处罚金的范围，适用条款，以提高审判效率，对案件审判的质量进行评价。因此，本赛题的任务分为两个子任务，即对给定的法律案件描述，分别预测出案件的罚金额度范围和对应的相关法律条文。</p>
+<p>其中一条数据如下，罚金范围类别为1，对应法律条文为347,25,27,67。</p>
+<blockquote>
+<p>公诉机关无锡市北塘区人民检察院。被告人金某，未办理居民身份证，无业。2013年4月7日因吸毒被行政拘留十日；2013年9月16日因吸毒被查获，次日因吸毒被行政拘留十五日，同年10月2日因涉嫌贩卖毒品罪被刑事拘留，同年11月6日被逮捕。现羁押于无锡市第一看守所。无锡市北塘区人民检察院以北检诉刑诉（2014）45号起诉书指控被告人金某犯贩卖毒品罪，于2014年1月15日向本院提起公诉。经无锡市中级人民法院指定管辖，本院于同年2月25日立案，依法适用简易程序，实行独任审判，公开开庭审理了本案。无锡市北塘区人民检察院指派检察员陈熠出庭支持公诉，被告人金某到庭参加诉讼。现已审理终结。1.2013年9月10日左右的一天，林某某（另案处理）电话联系周某后指使被告人金某出面交易，在无锡市锡山区锡北镇社区卫生服务中心门口将毒品海洛因0.3克贩卖给周某，得赃款300元。2.2013年9月14日左右的一天，林某某电话联系周某后指使被告人金某出面交易，在上述地点将毒品海洛因0.2克贩卖给周某，得赃款200元。2013年9月16日，被告人金某因吸毒被查获，其罪行尚未被发觉，仅因形迹可疑，被公安机关盘问、教育后，主动交代了自己的罪行。    1    347,25,27,67</p>
+</blockquote>
+<p>两类任务分别进行单独评测。对于罚金类别预测，使用Micro-Averaged F1指标衡量模型性能：<br>$$<br>micro_avg_F1=\frac{1}{N}\sum_{i=1}^{m}w_i f1_i<br>$$<br>其中, m表示类别数目，N表示样例总数，wi表示测试样例中属于第i类的个数，f1i是第i类中的F1值。</p>
+<p>对于法律条纹预测，使用Jaccard相似系数：<br>$$<br>p_i = \frac{|L^i\cap L_g^i|}{|L^i\cup L_g^i|} \<br>p=\frac{1}{N}\sum_{i=1}^{N}p_i<br>$$<br>其中，Li是标准答案的条文集合，Lig是预测的条文集合。最终得分为<code>0.5*micro_avg_F1+0.5*p</code>。 </p>
+<h1 id="数据"><a href="#数据" class="headerlink" title="数据"></a>数据</h1><h2 id="数据分析"><a href="#数据分析" class="headerlink" title="数据分析"></a>数据分析</h2><p>准确预测罚金具有较高的难度，通过查阅相关资料可知罚金与犯罪性质、非法所得数额、嫌疑人经济状况、地区经济发展水平等多种因素相关，并且法官有较大的自由裁量权。预测法条相对简单，特别是涉及到罪名的条款，因为大部分判决书已经明确给出的罪名，其对应条款也比较单一。训练集规模，初赛有4w，复赛有12w。</p>
+<p>下图是训练集中法条的分布情况。</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520142761/paper/ccf_1.jpg"></p>
+<h2 id="数据预处理"><a href="#数据预处理" class="headerlink" title="数据预处理"></a>数据预处理</h2><p>主要进行了分词、过滤、划分验证集、数据截断，词向量训练。</p>
+<p>首先清洗了一些乱码，过滤了过长过短的文档，分词采用了结巴分词。在训练词向量之前，<strong>一个重要的预处理就是把文中出现的金额替换为对应的罚金类别LV1~LV8</strong>， 否则在词向量训练过程中数字是学不到东西的，不同的数字被embedding到不同的向量，增加了对金额数字学习的难度，而这些金额数字又是非常重要的特征。这个预处理，使得各个模型的预测性能均有提升。我们的词向量的训练使用的是<strong>word2vec</strong>， 具体是通过gensim进行的，采用的模型是skip-gram，词频下限是3。</p>
+<p>训练集验证集划分比例10:1。 </p>
+<p>由于数据集中不同样本的长度不一，平均长度800词左右。对于接下来的CNN模型，我们采用了一种特殊的截断方法，<strong>如果长度大于2000，则取开始的500词和结尾的1500词。</strong> 这样做的原因是，数据集中典型的犯罪名称在头尾出现的较多，这样比直接截取前2000词模型得分提高0.6%左右。</p>
+<p>对于法律条文，发现并不是搜索的条文都出现过，所以我们去掉了一些未出现的条文类别，并进行了重新编码。</p>
+<h1 id="算法模型"><a href="#算法模型" class="headerlink" title="算法模型"></a>算法模型</h1><p>对于罚金类别预测，我们将其看作典型的文本多分类任务，可直接用模型多分类输出；对于法律条文预测，我们采用多二值分类的方法。在总体思路方向上，我们希望各个模型侧重不同的方面，eg:关键词，整体特征，结构化信息等。</p>
+<p>我们一共进行了三个思路的尝试。第一，基于搜索的方法，主要是通过人工选择关键词，找出罚金，罪名等，和法律条文中的罪名进行匹配。第二，利用传统机器学习的方法。先通过TF-IDF或N-gram提取特征，再用SVM，Naive Bayes等方法进行分类。第三类，是通过深度学习的方法。我们采用了TextCNN，RNN，Structured模型。最终，通过效果对比，我们只采用了深度学习的三个模型进行融合作为最后的结果。</p>
+<h2 id="TextCNN"><a href="#TextCNN" class="headerlink" title="TextCNN"></a>TextCNN</h2><p>模型来自论文<a target="_blank" rel="noopener" href="http://arxiv.org/abs/1408.5882">《Convolutional Neural Networks for Sentence Classification》</a>， 侧重于提取案件中的关键词/短语，例如罪名、地名、罚金等。它的基本思想是用不同大小的卷积核去捕捉不同的n-gram特征，并利用max-pooling提取位置无关信息，最后通过全连接层softmax or sigmoid作分类决策。论文详情可以看<a target="_blank" rel="noopener" href="https://github.com/luckcul/PaperNotes/blob/master/NLP/Convolutional_Neural_Networks_for_Sentence_Classification.md">我的论文笔记</a>。</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520146255/paper/ccfTextCnn.png" alt="TextCNN"></p>
+<p>参数方面，对于罚金任务，embedding层200维，kernel_size={3,4,5}三种，每个卷积核的输出是500维。max-pooling之后，两层FC，分别750和8维，然后softmax分别。dropout=0.1。对于法条预测，是在max-pooling之后直接一个321的FC+sigmoid作为输出。</p>
+<p>训练时，每个epoch验证集上验证4次，两次不上升，lr减半。如果继续两次验证不上升，停止训练。</p>
+<h2 id="RNN"><a href="#RNN" class="headerlink" title="RNN"></a>RNN</h2><p>该模型用于提取文档上下文与全局语义特征。传统的RNN模型只用最后一个单元的输出作为语义向量，但是这对文本分类来说会丢失很多中间信息，因此我们采用了一种利用全局信息的RNN模型。</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520146907/paper/ccfRNN.png" alt="RNN"></p>
+<p>RNN单元我们使用GRU，并对这些时间步上的输出进行一个FC(各个时间步共享这个FC的权重), 每一个时间步的结果一起组成了一个Feature Map。然后进行max-pooling来对feature map进行最大池化，然后添加两个全FC，最后进行softmax or sigmoid进行预测。</p>
+<p>参数方面，embedding层256维，GRU输出400维，之后的FC也是400维，pooling之后的FC也是400维，最后一层如果是预测罚金就是8，如果是法条预测是321维。</p>
+<h2 id="Structured"><a href="#Structured" class="headerlink" title="Structured"></a>Structured</h2><p>该模型来自论文<a target="_blank" rel="noopener" href="http://arxiv.org/abs/1705.09207">《Learning Structured Text Representations》</a>， 在Yelp数据集上取得了准确度68.6的成绩。在预处理时，按照“。？！”分割成句子，每个文本截断前100个句子。每个句子截断前100个词。同时过滤掉空白文本。该模型能够捕获到上述两个模型在原始数据层丢失的语义信息，但作为交换的是训练时间较长（约13小时）。源码地址：<a target="_blank" rel="noopener" href="https://github.com/luckcul/structured">GitHub Link</a>。</p>
+<p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520151118/paper/ccfStructured.png" alt="Structured"></p>
+<p>该模型通过句子中词向量，先得到句子的向量表示；再通过文档中句子的向量表示，得到文档的向量表示；最终用该向量表示来做罚金类别预测。对于句子T=[u0,u1,…, un]，其中ui是句子中第i个词的向量表示，输入到双向LSTM网络中，对于每个的输出hi向量分成两部分ei和di，即hi=[ei, di]，这两部分分别用来表示语义信息和结构注意力信息。然后通过结构注意力机制，获得每个词的新的向量表示[r0, r1,…, rn]。然后进行max-pooling获得句子的表示。在获得document表示的时候，过程类似。文本向量后添加两个全连接层，最终做softmax，就可以得到对于8个罚金类别的预测概率。在具体实现上，我们采用的是max-pooling，全连接层dropout=0.3。</p>
+<p>该模型的核心亮点，就是所采用的Structured Attention机制。因为根据Rhetorical Structure Theory ，词之间或者句子之间是存在一种树形依赖的。具体是把LSTM的输出ht=[et, dt]，中dt用来做结构信息，来构造邻接矩阵和Laplacian矩阵。然后分别计算每个输出作为根节点的概率，作为其他节点孩子的概率，作为其他节点父亲的概率，通过这些概率得到对其他节点的依赖，再结合自己的语义信息et，拼接得到最终的语义向量。</p>
+<h1 id="模型融合"><a href="#模型融合" class="headerlink" title="模型融合"></a>模型融合</h1><p><img src="https://res.cloudinary.com/dyhtzpcxp/image/upload/v1520152372/paper/ccf-results.png" alt="results"></p>
+<p>图中是各个模型在已知分数下的预估得分。最终得分70%+，也是本场唯一一个分数过70的队伍。</p>
+<p>关于模型融合，最优提交的结果是对概率简单平均之后进行融合的。TextCNN，RNN分别跑了四次，Structured跑了2次，先是每个模型内进行概率平均，减少模型的不稳定。在模型间也是进行简单的平均，对于罚金预测，直接输出最大概率的类别；对于法条预测，输出概率大于0.5的所有条文。</p>
+<p>我们也尝试了，对不同模型分配不同的权重，而不是简单的平均。我们划分了训练集/验证集/测试集，使用简单的LR模型，学习不同的权重，发现对于每个法条给每个模型不同权重，一直过拟合。对于不同模型，分配权重，线下是有提升的。然而，线上结果没有提升。</p>
+<h1 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h1><p>比赛后期是很疲累的，但是收获挺大的。至今还记得复赛封榜时，我们还是第一的时候激动的心情。非常感谢队友，没有队友就不会有这篇文章了。</p>
+<p>关于收获，总结起来就是：</p>
+<ul>
+<li>对于数据的分析和理解、有效的预处理方式非常重要。</li>
+<li>模型要多样性，最好能互相弥补、互有侧重。</li>
+<li>认真学习、脚踏实地。</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+    <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/NLP/" rel="tag"># NLP</a>
+              <a href="/tags/text-classification%EF%BC%8C-competition/" rel="tag"># text classification， competition</a>
+          </div>
+
+        
+
+          <div class="post-nav">
+            <div class="post-nav-item">
+                <a href="/2017/10/28/learn-word2vec/" rel="prev" title="Word2Vec学习及基于tensorflow的实现">
+                  <i class="fa fa-chevron-left"></i> Word2Vec学习及基于tensorflow的实现
+                </a>
+            </div>
+            <div class="post-nav-item">
+            </div>
+          </div>
+    </footer>
+  </article>
+  
+  
+  
+
+
+
+      
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      const activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      const commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      
+
+      
+
+<div class="copyright">
+  
+  &copy; 2015 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">luckcul</span>
+</div>
+<div class="busuanzi-count">
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="Total Visitors">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="Total Views">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://theme-next.js.org/mist/" class="theme-link" rel="noopener" target="_blank">NexT.Mist</a>
+  </div>
+
+    </div>
+  </footer>
+
+  
+  <script src="//cdn.jsdelivr.net/npm/animejs@3.2.0/lib/anime.min.js"></script>
+<script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/muse.js"></script><script src="/js/next-boot.js"></script>
+
+  
+  <script>
+    (function(){
+      var bp = document.createElement('script');
+      var curProtocol = window.location.protocol.split(':')[0];
+      bp.src = (curProtocol === 'https') ? 'https://zz.bdstatic.com/linksubmit/push.js' : 'http://push.zhanzhang.baidu.com/push.js';
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(bp, s);
+    })();
+  </script>
+
+
+
+
+  <script>
+  (function(w,d,t,u,n,s,e){w['SwiftypeObject']=n;w[n]=w[n]||function(){
+    (w[n].q=w[n].q||[]).push(arguments);};s=d.createElement(t);
+    e=d.getElementsByTagName(t)[0];s.async=1;s.src=u;e.parentNode.insertBefore(s,e);
+  })(window,document,'script','//s.swiftypecdn.com/install/v2/st.js','_st');
+
+  _st('install','UfzrtLcd_2sN6-teqqRL','2.0.0');
+</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+
+
+
+
+
+
+
+
+  
+
+  
+      <script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              const target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    const script = document.createElement('script');
+    script.src = '//cdn.jsdelivr.net/npm/mathjax@3.1.0/es5/tex-mml-chtml.js';
+    script.defer = true;
+    document.head.appendChild(script);
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.typesetClear();
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script>
+
+    
+
+  
+
+</body>
+</html>
